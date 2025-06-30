@@ -1,64 +1,79 @@
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import ta
-import xgboost as xgb
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-import streamlit as st
-import matplotlib.pyplot as plt
 
-st.set_page_config(layout="centered", page_title="AI توصيات فوركس")
 st.title("📈 توصيات الفوركس باستخدام الذكاء الاصطناعي")
 
-@st.cache_data
-def load_data():
-    data = yf.download("EURUSD=X", start="2023-01-01", end="2025-06-30", interval="1d")
+# اختيار زوج العملات
+pair = st.selectbox("اختر زوج العملات", ["EURUSD=X", "USDJPY=X", "GBPUSD=X", "AUDUSD=X", "USDCAD=X"])
 
-    # تحقق من وجود بيانات كافية
-    if data.empty or len(data) < 50:
-        st.error("❌ البيانات غير كافية لتحليل المؤشرات الفنية.")
-        return pd.DataFrame()
+# تحميل البيانات
+data = yf.download(pair, period="6mo", interval="1d")
 
-    # إضافة المؤشرات الفنية
+# التحقق من وجود البيانات
+if data.empty or 'Close' not in data.columns:
+    st.error("❌ فشل تحميل بيانات السوق. يرجى التأكد من الاتصال بالإنترنت أو اختيار زوج عملات مختلف.")
+    st.stop()
+
+# حساب المؤشرات الفنية بأمان
+if data['Close'].isnull().sum() > 0:
+    st.error("❌ بيانات الإغلاق تحتوي على قيم مفقودة، لا يمكن حساب المؤشرات الفنية.")
+    st.stop()
+
+try:
+    # RSI
     data['rsi'] = ta.momentum.RSIIndicator(close=data['Close']).rsi()
 
+    # MACD
     macd = ta.trend.MACD(close=data['Close'])
     data['macd_line'] = macd.macd()
     data['macd_signal'] = macd.macd_signal()
     data['macd'] = data['macd_line'] - data['macd_signal']
 
+    # المتوسط المتحرك
     data['ma10'] = data['Close'].rolling(window=10).mean()
+
+    # الهدف (هل السعر سيرتفع غدًا)
     data['target'] = (data['Close'].shift(-1) > data['Close']).astype(int)
 
-    return data.dropna()
-
-# تحميل البيانات
-data = load_data()
-
-# تأكد من عدم وجود بيانات فاضية
-if data.empty:
+    # حذف القيم الفارغة
+    data.dropna(inplace=True)
+except Exception as e:
+    st.error(f"❌ حدث خطأ أثناء حساب المؤشرات الفنية: {e}")
     st.stop()
 
-# تجهيز البيانات للنموذج
-X = data[['rsi', 'macd', 'ma10']]
+# عرض البيانات
+st.subheader("📊 البيانات بعد المعالجة")
+st.dataframe(data.tail())
+
+# تدريب النموذج
+features = ['rsi', 'macd', 'ma10']
+X = data[features]
 y = data['target']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=0.2)
-model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+
+model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
-# دقة النموذج
-accuracy = accuracy_score(y_test, model.predict(X_test))
-last = X.iloc[-1]
-decision = model.predict(last.values.reshape(1, -1))[0]
+# التقييم
+y_pred = model.predict(X_test)
+acc = accuracy_score(y_test, y_pred)
+st.write(f"🎯 دقة النموذج: {acc:.2%}")
 
-# عرض النتائج
-st.markdown(f"### 🔍 دقة النموذج: `{round(accuracy*100, 2)}%`")
-if decision == 1:
-    st.success("✅ توصية: ادخل السوق — احتمال صعود.")
+# التوصية لليوم الحالي
+latest = data.iloc[-1]
+latest_features = latest[features].values.reshape(1, -1)
+prediction = model.predict(latest_features)[0]
+
+if prediction == 1:
+    st.success("✅ التوصية: شراء")
 else:
-    st.warning("⛔ لا تدخل الآن — إشارات غير كافية.")
+    st.error("⚠️ التوصية: بيع أو الانتظار")
 
-# عرض الشارت
-st.line_chart(data[['Close']], height=250)
-st.line_chart(data[['rsi']], height=150)
+# رسم بياني للسعر
+st.line_chart(data['Close'])
