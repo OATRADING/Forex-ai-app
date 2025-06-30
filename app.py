@@ -20,7 +20,9 @@ def load_data():
     # حساب المؤشرات الفنية
     data['rsi'] = ta.momentum.RSIIndicator(data['Close']).rsi()
     macd = ta.trend.MACD(data['Close'])
-    data['macd'] = macd.macd() - macd.macd_signal()
+    data['macd_line'] = macd.macd()
+data['macd_signal'] = macd.macd_signal()
+data['macd'] = data['macd_line'] - data['macd_signal']
     data['ma10'] = data['Close'].rolling(window=10).mean()
 
     # إنشاء الهدف (Target)
