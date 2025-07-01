@@ -20,7 +20,11 @@ if uploaded_file is not None:
             st.stop()
 
         # التحقق من وجود قيم مفقودة
-        if data['Close'].isnull().sum() > 0:
+        if 'Close' not in data.columns:
+    st.error("❌ العمود 'Close' غير موجود في الملف المرفوع. تأكد من رفع ملف يحتوي على هذا العمود.")
+    st.stop()
+elif data['Close'].isnull().sum() > 0:
+    st.warning("⚠️ يوجد بيانات ناقصة في عمود 'Close'.")
             st.error("❌ بيانات الإغلاق تحتوي على قيم مفقودة، لا يمكن حساب المؤشرات الفنية.")
             st.stop()
 
