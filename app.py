@@ -1,59 +1,58 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import yfinance as yf
 
-class ForexAnalyzer:
-    def __init__(self, data):
-        self.data = data
+# حساب RSI (مؤشر القوة النسبية)
+def calculate_rsi(data, period=14):
+    delta = data.diff()
+    gain = delta.clip(lower=0)
+    loss = -1 * delta.clip(upper=0)
 
-        # التأكد من وجود عمود Close
-        if 'Close' not in data.columns:
-            st.error("❌ لا يوجد عمود باسم 'Close' في البيانات.")
-            self._close = None
-            return
+    avg_gain = gain.rolling(window=period).mean()
+    avg_loss = loss.rolling(window=period).mean()
 
-        # تأكد أن self._close عبارة عن Series (وليس DataFrame)
-        self._close = data['Close'].squeeze()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
-        self._calculate_indicators()
+# تحميل بيانات السوق
+@st.cache_data
+def load_data(symbol, start_date, end_date):
+    data = yf.download(symbol, start=start_date, end=end_date)
+    return data
 
-    def _calculate_indicators(self):
-        if self._close is None:
-            return
-
-        # حساب RSI بسيط
-        delta = self._close.diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
-
-        avg_gain = gain.rolling(window=14).mean()
-        avg_loss = loss.rolling(window=14).mean()
-
-        rs = avg_gain / avg_loss
-        rsi = 100 - (100 / (1 + rs))
-
-        # تأكد أن rsi عبارة عن Series 1D بنفس index
-        self._rsi = pd.Series(rsi.values, index=self._close.index)
-        self.data['RSI'] = self._rsi
-
-    def get_data(self):
-        return self.data
-
-
-# --- Streamlit واجهة التطبيق ---
-
+# الواجهة
+st.set_page_config(page_title="توصيات الفوركس باستخدام الذكاء الاصطناعي", layout="wide")
 st.title("📉 توصيات الفوركس باستخدام الذكاء الاصطناعي")
 
-uploaded_file = st.file_uploader("📂 ارفع ملف بيانات الفوركس (CSV)", type="csv")
+# اختيارات المستخدم
+symbol = st.text_input("أدخل رمز العملة (مثل EURUSD=X):", "EURUSD=X")
+start_date = st.date_input("تاريخ البداية:", pd.to_datetime("2023-01-01"))
+end_date = st.date_input("تاريخ النهاية:", pd.to_datetime("today"))
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+if st.button("ابدأ التحليل"):
+    data = load_data(symbol, start_date, end_date)
 
-    analyzer = ForexAnalyzer(df)
-    processed_data = analyzer.get_data()
+    if 'Close' not in data.columns:
+        st.error("❌ لا يوجد عمود اسمه 'Close' في البيانات")
+    else:
+        close = data['Close']
+        rsi = calculate_rsi(close)
 
-    if processed_data is not None and 'RSI' in processed_data.columns:
-        st.subheader("📊 بيانات مع مؤشر RSI")
-        st.dataframe(processed_data.tail(20))
+        # التوصية بناءً على RSI
+        latest_rsi = rsi.iloc[-1]
+        recommendation = "🔍 لا توجد توصية حاليًا"
 
-        st.line_chart(processed_data[['Close', 'RSI']])
+        if latest_rsi < 30:
+            recommendation = "✅ اشترِ (العملة في منطقة بيع مفرط)"
+        elif latest_rsi > 70:
+            recommendation = "❌ بيع (العملة في منطقة شراء مفرط)"
+
+        st.subheader("مؤشر RSI")
+        st.line_chart(rsi)
+
+        st.subheader("التوصية:")
+        st.success(recommendation)
+
+        st.write("آخر قيمة RSI:", round(latest_rsi, 2))
