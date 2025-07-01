@@ -33,6 +33,8 @@ st.title("توصيات الفوركس باستخدام الذكاء الاصطن
 data = load_data()
 
 if data is not None:
+    latest_rsi = data['RSI'].iloc[-1]
+    st.markdown(f"### 📊 القيمة الحالية لمؤشر RSI: {latest_rsi:.2f}")
                                                           
 latest_rsi = data['RSI'].iloc[-1]
 st.markdown(f"### 📊 الحالة الحالية RSI: {latest_rsi:.2f}")
