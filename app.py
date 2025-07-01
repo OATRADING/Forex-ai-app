@@ -1,79 +1,58 @@
+
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import ta
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+
+st.set_page_config(page_title="توصيات الفوركس باستخدام الذكاء الاصطناعي", layout="wide")
 
 st.title("📈 توصيات الفوركس باستخدام الذكاء الاصطناعي")
 
-# اختيار زوج العملات
-pair = st.selectbox("اختر زوج العملات", ["EURUSD=X", "USDJPY=X", "GBPUSD=X", "AUDUSD=X", "USDCAD=X"])
+uploaded_file = st.file_uploader("📤 قم برفع ملف البيانات (CSV)", type=["csv"])
 
-# تحميل البيانات
-data = yf.download(pair, period="6mo", interval="1d")
+if uploaded_file is not None:
+    try:
+        data = pd.read_csv(uploaded_file)
+        st.success("✅ تم تحميل البيانات بنجاح.")
 
-# التحقق من وجود البيانات
-if data.empty or 'Close' not in data.columns:
-    st.error("❌ فشل تحميل بيانات السوق. يرجى التأكد من الاتصال بالإنترنت أو اختيار زوج عملات مختلف.")
-    st.stop()
+        # التحقق من وجود العمود 'Close'
+        if 'Close' not in data.columns:
+            st.error("❌ الملف لا يحتوي على عمود 'Close' المطلوب لحساب المؤشرات الفنية.")
+            st.stop()
 
-# حساب المؤشرات الفنية بأمان
-if data['Close'].isnull().sum() > 0:
-    st.error("❌ بيانات الإغلاق تحتوي على قيم مفقودة، لا يمكن حساب المؤشرات الفنية.")
-    st.stop()
+        # التحقق من وجود قيم مفقودة
+        if data['Close'].isnull().sum() > 0:
+            st.error("❌ بيانات الإغلاق تحتوي على قيم مفقودة، لا يمكن حساب المؤشرات الفنية.")
+            st.stop()
 
-try:
-    # RSI
-    data['rsi'] = ta.momentum.RSIIndicator(close=data['Close']).rsi()
+        # حساب مؤشرات فنية
+        try:
+            data['rsi'] = ta.momentum.RSIIndicator(close=data['Close']).rsi()
+            macd = ta.trend.MACD(close=data['Close'])
+            data['macd_line'] = macd.macd()
+            data['macd_signal'] = macd.macd_signal()
+            st.success("✅ تم حساب المؤشرات الفنية بنجاح.")
+        except Exception as e:
+            st.error(f"❌ تعذر حساب المؤشرات الفنية: {e}")
+            st.stop()
 
-    # MACD
-    macd = ta.trend.MACD(close=data['Close'])
-    data['macd_line'] = macd.macd()
-    data['macd_signal'] = macd.macd_signal()
-    data['macd'] = data['macd_line'] - data['macd_signal']
+        st.subheader("📊 بيانات مع مؤشرات فنية")
+        st.dataframe(data.tail())
 
-    # المتوسط المتحرك
-    data['ma10'] = data['Close'].rolling(window=10).mean()
+        # توليد توصية بسيطة
+        def get_recommendation(row):
+            if row['rsi'] < 30 and row['macd_line'] > row['macd_signal']:
+                return 'شراء'
+            elif row['rsi'] > 70 and row['macd_line'] < row['macd_signal']:
+                return 'بيع'
+            else:
+                return 'انتظار'
 
-    # الهدف (هل السعر سيرتفع غدًا)
-    data['target'] = (data['Close'].shift(-1) > data['Close']).astype(int)
+        data['التوصية'] = data.apply(get_recommendation, axis=1)
 
-    # حذف القيم الفارغة
-    data.dropna(inplace=True)
-except Exception as e:
-    st.error(f"❌ حدث خطأ أثناء حساب المؤشرات الفنية: {e}")
-    st.stop()
+        st.subheader("📌 آخر توصية")
+        st.write(f"🔔 التوصية: **{data['التوصية'].iloc[-1]}**")
 
-# عرض البيانات
-st.subheader("📊 البيانات بعد المعالجة")
-st.dataframe(data.tail())
-
-# تدريب النموذج
-features = ['rsi', 'macd', 'ma10']
-X = data[features]
-y = data['target']
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=0.2)
-
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
-
-# التقييم
-y_pred = model.predict(X_test)
-acc = accuracy_score(y_test, y_pred)
-st.write(f"🎯 دقة النموذج: {acc:.2%}")
-
-# التوصية لليوم الحالي
-latest = data.iloc[-1]
-latest_features = latest[features].values.reshape(1, -1)
-prediction = model.predict(latest_features)[0]
-
-if prediction == 1:
-    st.success("✅ التوصية: شراء")
+    except Exception as e:
+        st.error(f"❌ حدث خطأ أثناء معالجة البيانات: {e}")
 else:
-    st.error("⚠️ التوصية: بيع أو الانتظار")
-
-# رسم بياني للسعر
-st.line_chart(data['Close'])
+    st.info("📎 الرجاء رفع ملف CSV يحتوي على بيانات الأسعار (يجب أن يحتوي على عمود 'Close').")
