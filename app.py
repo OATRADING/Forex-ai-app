@@ -49,7 +49,7 @@ st.markdown(f"### 📊 الحالة الحالية RSI: {latest_rsi:.2f}")
         st.info("التوصية: ترقّب — السوق غير واضح حالياً.")
 
                          
-    st.subheader("# عرض الشارت
+    st.subheader("# عرض الشارت)
     st.subheader("سعر الإغلاق")
     st.line_chart(data['Close'], height=250, use_container_width=True)
     st.subheader("مؤشر RSI")
