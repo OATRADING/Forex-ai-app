@@ -34,7 +34,7 @@ data = load_data()
 
 if data is not None:
     latest_rsi = data['RSI'].iloc[-1]
-    st.markdown(f"  )                                                         
+    st.markdown(f)                                                         
 
                                                      
     if latest_rsi < 30:
