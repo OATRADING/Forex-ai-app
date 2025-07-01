@@ -1,21 +1,18 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import yfinance as yf
 
 # دالة لحساب RSI يدويًا بدون مكتبة ta
 def calculate_rsi(close, period=14):
-    delta = close.diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
-    
-    # تجنب القسمة على صفر
-    rs = np.where(avg_loss == 0, 0, avg_gain / avg_loss)
-    
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    delta = close.diff().dropna()
+    up, down = delta.copy(), delta.copy()
+    up[up < 0] = 0
+    down[down > 0] = 0
+    roll_up = up.rolling(window=period).mean()
+    roll_down = down.rolling(window=period).mean().abs()
+    RS = roll_up / roll_down
+    RSI = 100.0 - (100.0 / (1.0 + RS))
+    return RSI
 
 # تحميل البيانات من Yahoo Finance
 @st.cache_data
