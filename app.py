@@ -1,44 +1,39 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 
-st.set_page_config(page_title="توصيات الفوركس باستخدام الذكاء الاصطناعي", layout="centered")
+class ForexAnalyzer:
+    def __init__(self, data):
+        self.data = data
 
-st.title("📈 توصيات الفوركس باستخدام الذكاء الاصطناعي")
-
-# رفع ملف CSV
-uploaded_file = st.file_uploader("📂 قم بتحميل ملف البيانات (CSV)", type=["csv"])
-
-if uploaded_file is not None:
-    try:
-        data = pd.read_csv(uploaded_file)
-
-        # التحقق من وجود العمود "Close"
-  close_col = None
-for col in data.columns:
-    if col.strip().lower() == 'close':
-        close_col = col
-        break
-
-if close_col is None:
-    st.error("❌ لا يوجد عمود اسمه Close في الملف. تأكد من الملف الذي رفعته.")
-    st.stop()
-else:
-    data['Close'] = data[close_col]
-            st.error("❌ الملف لا يحتوي على عمود 'Close'. الرجاء التأكد من أن الملف يحتوي على هذا العمود.")
+        # التحقق من وجود عمود 'Close'
+        if 'Close' not in self.data.columns:
+            st.error("❌ لا يوجد عمود اسمه 'Close' في البيانات المدخلة. الرجاء التأكد من الملف.")
+            self._close = None
+            return
         else:
-            # عرض البيانات
-            st.success("✅ تم تحميل الملف بنجاح!")
-            st.subheader("عرض أول 5 صفوف من البيانات:")
-            st.dataframe(data.head())
+            # استخدام Series وليس DataFrame
+            self._close = self.data['Close']
 
-            # مثال على تحليل بسيط: حساب المتوسط المتحرك
-            data['SMA_5'] = data['Close'].rolling(window=5).mean()
-            st.subheader("📊 المتوسط المتحرك لـ 5 أيام:")
-            st.line_chart(data[['Close', 'SMA_5']])
+        self._calculate_indicators()
 
-            # يمكنك هنا إضافة الذكاء الاصطناعي لاحقًا...
+    def _calculate_indicators(self):
+        if self._close is None:
+            return  # لا تكمل إذا لم تكن البيانات صالحة
 
-    except Exception as e:
-        st.error(f"🚨 حدث خطأ أثناء معالجة الملف:\n{e}")
-else:
-    st.info("⬆️ الرجاء تحميل ملف CSV يحتوي على عمود 'Close' لبدء التحليل.")
+        # مثال لحساب RSI بسيط
+        delta = self._close.diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+
+        average_gain = gain.rolling(window=14).mean()
+        average_loss = loss.rolling(window=14).mean()
+
+        rs = average_gain / average_loss
+        rsi = 100 - (100 / (1 + rs))
+
+        self._rsi = rsi  # من نوع Series 1D
+        self.data['RSI'] = self._rsi
+
+    def get_rsi(self):
+        return self._rsi
