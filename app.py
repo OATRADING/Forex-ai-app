@@ -13,7 +13,17 @@ if uploaded_file is not None:
         data = pd.read_csv(uploaded_file)
 
         # التحقق من وجود العمود "Close"
-        if 'Close' not in data.Columns:
+  close_col = None
+for col in data.columns:
+    if col.strip().lower() == 'close':
+        close_col = col
+        break
+
+if close_col is None:
+    st.error("❌ لا يوجد عمود اسمه Close في الملف. تأكد من الملف الذي رفعته.")
+    st.stop()
+else:
+    data['Close'] = data[close_col]
             st.error("❌ الملف لا يحتوي على عمود 'Close'. الرجاء التأكد من أن الملف يحتوي على هذا العمود.")
         else:
             # عرض البيانات
