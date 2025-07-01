@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
-# حساب RSI يدويًا
+# دالة لحساب RSI يدويًا بدون مكتبة ta
 def calculate_rsi(close, period=14):
     delta = close.diff()
     gain = delta.clip(lower=0)
@@ -16,7 +16,7 @@ def calculate_rsi(close, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# تحميل البيانات
+# تحميل البيانات من Yahoo Finance
 @st.cache_data
 def load_data(symbol="EURUSD=X", start="2023-01-01", end="2025-06-30"):
     data = yf.download(symbol, start=start, end=end, interval="1d")
@@ -33,7 +33,7 @@ latest_rsi = data['RSI'].iloc[-1]
 
 st.markdown(f"### 🔢 قيمة RSI الحالية: `{round(latest_rsi, 2)}`")
 
-# توليد التوصية
+# توليد التوصية بناءً على RSI
 if latest_rsi < 30:
     st.success("✅ التوصية: دخول السوق (العملة في منطقة بيع مفرط).")
 elif latest_rsi > 70:
@@ -42,5 +42,8 @@ else:
     st.info("🔍 التوصية: ترقّب — السوق غير واضح حالياً.")
 
 # عرض الشارت
+st.subheader("📊 سعر الإغلاق")
 st.line_chart(data['Close'], height=250, use_container_width=True)
+
+st.subheader("📉 مؤشر RSI")
 st.line_chart(data['RSI'], height=150, use_container_width=True)
