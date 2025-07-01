@@ -29,32 +29,28 @@ def load_data(symbol="EURUSD=X", start="2023-01-01", end="2025-06-30"):
 st.set_page_config(layout="centered", page_title="توصيات الفوركس بالذكاء الاصطناعي")
 st.title("توصيات الفوركس باستخدام الذكاء الاصطناعي")
 
-# Input for symbol
-symbol = st.text_input("Enter Symbol", value="EURUSD=X")
+# تحميل البيانات وتحليلها
+data = load_data()
 
-if st.button("Load Data"):
-    # تحميل البيانات وتحليلها
-    data = load_data(symbol=symbol)
-    
-    if data is not None:
-        latest_rsi = data['RSI'].iloc[-1]
-        st.markdown(f"                                                           
+if data is not None:
+    latest_rsi = data['RSI'].iloc[-1]
+    st.markdown(f"                                                           
 
-                                                         
-        if latest_rsi < 30:
-            st.success("### قيمة RSI الحالية: `{round(latest_rsi, 2)}`")
+                                                     
+    if latest_rsi < 30:
+        st.success("### قيمة RSI الحالية: `{round(latest_rsi, 2)}`")
 
-        # توليد التوصية بناءً على RSI
-        if latest_rsi < 30:
-            st.success("التوصية: دخول السوق (العملة في منطقة بيع مفرط).")
-        elif latest_rsi > 70:
-            st.error("التوصية: لا تدخل السوق (العملة في منطقة شراء مفرط).")
-        else:
-            st.info("التوصية: ترقّب — السوق غير واضح حالياً.")
+    # توليد التوصية بناءً على RSI
+    if latest_rsi < 30:
+        st.success("التوصية: دخول السوق (العملة في منطقة بيع مفرط).")
+    elif latest_rsi > 70:
+        st.error("التوصية: لا تدخل السوق (العملة في منطقة شراء مفرط).")
+    else:
+        st.info("التوصية: ترقّب — السوق غير واضح حالياً.")
 
-                             
-        st.subheader("# عرض الشارت
-        st.subheader("سعر الإغلاق")
-        st.line_chart(data['Close'], height=250, use_container_width=True)
-        st.subheader("مؤشر RSI")
-        st.line_chart(data['RSI'], height=150, use_container_width=True)
+                         
+    st.subheader("# عرض الشارت
+    st.subheader("سعر الإغلاق")
+    st.line_chart(data['Close'], height=250, use_container_width=True)
+    st.subheader("مؤشر RSI")
+    st.line_chart(data['RSI'], height=150, use_container_width=True)
