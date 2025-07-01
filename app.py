@@ -33,9 +33,9 @@ st.title("توصيات الفوركس باستخدام الذكاء الاصطن
 data = load_data()
 
 if data is not None:
-    latest_rsi = data['RSI'].iloc[-1]
-    st.markdown(f)                                                         
-
+                                                          
+latest_rsi = data['RSI'].iloc[-1]
+st.markdown(f"### 📊 الحالة الحالية RSI: {latest_rsi:.2f}")
                                                      
     if latest_rsi < 30:
         st.success("### قيمة RSI الحالية: `{round(latest_rsi, 2)}`")
