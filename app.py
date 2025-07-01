@@ -3,11 +3,11 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
-# حساب RSI (مؤشر القوة النسبية)
-def calculate_rsi(data, period=14):
-    delta = data.diff()
+# حساب RSI يدويًا
+def calculate_rsi(close, period=14):
+    delta = close.diff()
     gain = delta.clip(lower=0)
-    loss = -1 * delta.clip(upper=0)
+    loss = -delta.clip(upper=0)
 
     avg_gain = gain.rolling(window=period).mean()
     avg_loss = loss.rolling(window=period).mean()
@@ -16,43 +16,31 @@ def calculate_rsi(data, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# تحميل بيانات السوق
+# تحميل البيانات
 @st.cache_data
-def load_data(symbol, start_date, end_date):
-    data = yf.download(symbol, start=start_date, end=end_date)
-    return data
+def load_data(symbol="EURUSD=X", start="2023-01-01", end="2025-06-30"):
+    data = yf.download(symbol, start=start, end=end, interval="1d")
+    data['RSI'] = calculate_rsi(data['Close'])
+    return data.dropna()
 
-# الواجهة
-st.set_page_config(page_title="توصيات الفوركس باستخدام الذكاء الاصطناعي", layout="wide")
+# إعداد صفحة Streamlit
+st.set_page_config(layout="centered", page_title="📈 توصيات الفوركس بالذكاء الاصطناعي")
 st.title("📉 توصيات الفوركس باستخدام الذكاء الاصطناعي")
 
-# اختيارات المستخدم
-symbol = st.text_input("أدخل رمز العملة (مثل EURUSD=X):", "EURUSD=X")
-start_date = st.date_input("تاريخ البداية:", pd.to_datetime("2023-01-01"))
-end_date = st.date_input("تاريخ النهاية:", pd.to_datetime("today"))
+# تحميل البيانات وتحليلها
+data = load_data()
+latest_rsi = data['RSI'].iloc[-1]
 
-if st.button("ابدأ التحليل"):
-    data = load_data(symbol, start_date, end_date)
+st.markdown(f"### 🔢 قيمة RSI الحالية: `{round(latest_rsi, 2)}`")
 
-    if 'Close' not in data.columns:
-        st.error("❌ لا يوجد عمود اسمه 'Close' في البيانات")
-    else:
-        close = data['Close']
-        rsi = calculate_rsi(close)
+# توليد التوصية
+if latest_rsi < 30:
+    st.success("✅ التوصية: دخول السوق (العملة في منطقة بيع مفرط).")
+elif latest_rsi > 70:
+    st.error("⛔ التوصية: لا تدخل السوق (العملة في منطقة شراء مفرط).")
+else:
+    st.info("🔍 التوصية: ترقّب — السوق غير واضح حالياً.")
 
-        # التوصية بناءً على RSI
-        latest_rsi = rsi.iloc[-1]
-        recommendation = "🔍 لا توجد توصية حاليًا"
-
-        if latest_rsi < 30:
-            recommendation = "✅ اشترِ (العملة في منطقة بيع مفرط)"
-        elif latest_rsi > 70:
-            recommendation = "❌ بيع (العملة في منطقة شراء مفرط)"
-
-        st.subheader("مؤشر RSI")
-        st.line_chart(rsi)
-
-        st.subheader("التوصية:")
-        st.success(recommendation)
-
-        st.write("آخر قيمة RSI:", round(latest_rsi, 2))
+# عرض الشارت
+st.line_chart(data['Close'], height=250, use_container_width=True)
+st.line_chart(data['RSI'], height=150, use_container_width=True)
